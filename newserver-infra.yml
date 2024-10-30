@@ -10,7 +10,7 @@
     ssh_key_dest: "/home/{{ new_username }}/.ssh/id_{{ ssh_key_type }}"
     ssh_keys:
       - files/certs/ansible.pub
-#      - files/certs/nic-wsl.pub
+      - files/certs/nic-wsl.pub
 #      - files/certs/webservices/russelb.pub
 
   tasks:
@@ -67,9 +67,3 @@
         name:
           - qemu-guest-agent
         state: present
-
-    - name: Remove user example_user
-      ansible.builtin.user:
-        name: newadmin
-        state: absent
-        remove: yes        
