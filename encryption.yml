@@ -1,0 +1,52 @@
+---
+- name: Setup full disk encryption on Ubuntu 22.04
+  hosts: new
+  become: yes
+  vars:
+    luks_device: /dev/sda # Change this to your actual LUKS device
+    luks_password: "changeme" # Environment variable for the password
+
+  tasks:
+    - name: Ensure necessary packages are installed
+      ansible.builtin.package:
+        name: cryptsetup
+        state: present
+
+    - name: Create a loopback device with LUKS encryption
+      command: |
+        cryptsetup luksFormat --type luks1 {{ luks_device }}
+        echo "{{ luks_password }}" | cryptsetup open --type luks {{ luks_device }} luks-root
+      changed_when: true
+      failed_when: false
+
+    - name: Add the encrypted partition to /etc/crypttab
+      lineinfile:
+        path: /etc/crypttab
+        line: "luks-root none luks"
+        create: yes
+
+    - name: Ensure systemd-cryptsetup@.service is enabled and started
+      systemd:
+        name: systemd-cryptsetup@luks-root
+        enabled: true
+        state: started
+
+    - name: Update initramfs to include cryptdevice
+      command: |
+        update-initramfs -u
+      when: ansible_os_family == "Debian"
+
+    - name: Configure GRUB to handle the decryption process
+      command: |
+        sed -i 's/GRUB_CMDLINE_LINUX="/&cryptdevice={{ luks_device }}:luks-root /' /etc/default/grub
+        update-grub
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure GRUB is updated
+      command: update-grub
+      when: ansible_os_family == "RedHat"
+
+    - name: Reboot the server to complete the setup
+      command: reboot
+      async: 3600
+      poll: 0

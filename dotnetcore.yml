@@ -1,6 +1,6 @@
 ---
 - name: Install PowerShell on Ubuntu
-  hosts: dotnet
+  hosts: dotnetcore
   become: yes
 
   tasks:

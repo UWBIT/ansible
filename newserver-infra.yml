@@ -3,14 +3,15 @@
   become: yes
   vars:
     ssl_key_dest: "/home/{{ new_username }}/.ssh/"
-    new_username: "admin"
+    new_username: "infra"
     ssh_key_type: "rsa"
     ssh_key_bits: 2048
-    ssh_key_comment: "admin@{{ ansible_hostname }}"
+    ssh_key_comment: "infra@{{ ansible_hostname }}"
     ssh_key_dest: "/home/{{ new_username }}/.ssh/id_{{ ssh_key_type }}"
     ssh_keys:
       - files/certs/ansible.pub
       - files/certs/nic-wsl.pub
+      - files/certs/brian.pub
 #      - files/certs/webservices/russelb.pub
 
   tasks:
@@ -66,4 +67,7 @@
       apt:
         name:
           - qemu-guest-agent
+          - tpm2-abrmd
+          - tpm2-tools
+          - libtss2-rc0
         state: present

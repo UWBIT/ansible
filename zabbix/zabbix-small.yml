@@ -1,0 +1,29 @@
+---
+- name: Install zabbix client on 22.04 server
+  hosts: zabbix
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install zabbix client package
+      apt:
+        name: zabbix-agent
+        state: present
+
+    - name: Create zabbix client configuration directory
+      file:
+        path: /etc/zabbix/zabbix_agentd.conf.d/
+        state: directory
+
+    - name: Copy zabbix client configuration file
+      copy:
+        src: zabbix_agentd.conf
+        dest: /etc/zabbix/zabbix_agentd.conf.d/zabbix_agentd.conf
+
+    - name: Start and enable zabbix client service
+      service:
+        name: zabbix-agent
+        state: started
+        enabled: yes
