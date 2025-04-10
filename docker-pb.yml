@@ -1,9 +1,9 @@
 - name: Install Docker on Ubuntu
   hosts: docker
-  remote_user: admin  # Change remote user to your sudo user!
+  remote_user: infra
   become: true
   vars:
-    arch_mapping:  # Map ansible architecture {{ ansible_architecture }} names to Docker's architecture names
+    arch_mapping:
       x86_64: amd64
       aarch64: arm64
 
@@ -79,3 +79,11 @@
       loop:
         - docker.service
         - containerd.service
+
+    - name: Create directory Docker
+      ansible.builtin.file:
+        path: /infra/docker
+        state: directory
+        mode: '0755'
+        owner: infra
+        group: docker
