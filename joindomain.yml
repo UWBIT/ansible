@@ -1,0 +1,58 @@
+---    
+- name: Install required packages    
+  apt:    
+    name:    
+      - realmd    
+      - sssd    
+      - adcli    
+      - packagekit    
+      - samba-common-bin    
+    state: present    
+    update_cache: yes    
+
+- name: Discover the Active Directory domain    
+  command: realm discover "{{ ad_domain }}"    
+  register: realm_discover    
+    
+- name: Check if the machine is already joined to the domain    
+  command: realm list    
+  register: realm_list    
+  changed_when: false    
+    
+- name: Join the machine to the Active Directory domain    
+  command: realm join -U "{{ ad_admin_user }}" "{{ ad_domain }}"    
+  args:    
+    stdin: "{{ ad_password }}"    
+  vars:    
+    ad_password: "{{ vault_ad_password }}"    
+  when: ad_domain not in realm_list.stdout    
+  
+- name: Configure SSSD    
+  copy:    
+    dest: /etc/sssd/sssd.conf    
+    content: |    
+      [sssd]    
+      services = nss, pam    
+      domains = {{ ad_domain }}    
+      [domain/{{ ad_domain }}]    
+      id_provider = ad    
+      access_provider = ad    
+      override_homedir = /home/%u    
+      default_shell = /bin/bash    
+    owner: root    
+    group: root    
+    mode: '0600'    
+  when: ad_domain not in realm_list.stdout    
+    
+- name: Restart SSSD service    
+  service:    
+    name: sssd    
+    state: restarted    
+  when: ad_domain not in realm_list.stdout    
+    
+- name: Ensure pam_mkhomedir.so is present in common-session    
+  lineinfile:    
+    path: /etc/pam.d/common-session    
+    line: "session required pam_mkhomedir.so skel=/etc/skel umask=0077"    
+    state: present    
+  when: ad_domain not in realm_list.stdout    
