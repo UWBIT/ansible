@@ -1,0 +1,74 @@
+- name: Install and configure SQL Server on Ubuntu 22.04
+  hosts: sql
+  become: yes
+  tasks:
+    - name: Get the version of Ubuntu
+      shell: ". /etc/os-release && echo $VERSION_ID"
+      register: ubuntu_version
+
+    - name: Get the codename of Ubuntu
+      command: lsb_release -cs
+      register: ubuntu_codename
+
+    - name: Download the Microsoft repository keys
+      get_url:
+        url: "https://packages.microsoft.com/config/ubuntu/{{ ubuntu_version.stdout }}/packages-microsoft-prod.deb"
+        dest: /tmp/packages-microsoft-prod.deb
+
+    - name: Register the Microsoft repository keys
+      shell: "dpkg -i /tmp/packages-microsoft-prod.deb"
+
+    - name: Delete the Microsoft repository keys file
+      file:
+        path: /tmp/packages-microsoft-prod.deb
+        state: absent
+
+    - name: Add Microsoft GPG key
+      apt_key:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        state: present
+        keyring: /usr/share/keyrings/microsoft-prod.gpg
+
+    - name: Update the list of packages after adding packages.microsoft.com
+      apt:
+        update_cache: yes
+
+    - name: Install SQL Server
+      apt:
+        name: mssql-server
+        state: present
+
+#    - name: Run the SQL Server setup script
+#      expect:
+#        command: /opt/mssql/bin/mssql-conf setup
+#        responses:
+#          "Enter your edition(1-10):": "2\n"
+#          "Do you accept the license terms? [Yes/No]:": "Yes\n"
+#          "Enter the SQL Server system administrator password:": "YourPassword\n"
+#          "Confirm the SQL Server system administrator password:": "YourPassword\n"
+
+#    - name: Start SQL Server service
+#      systemd:
+#        name: mssql-server
+#        state: started
+#        enabled: yes
+
+#    - name: Install SQL Server command-line tools
+#      apt:
+#        name: 
+#          - mssql-tools
+#          - unixodbc-dev
+#        state: present
+
+    - name: Update PATH environment variable
+      lineinfile:
+        path: /etc/profile.d/mssql-tools.sh
+        line: 'export PATH="$PATH:/opt/mssql-tools/bin"'
+        create: yes
+
+    - name: Source the profile script
+      shell: source /etc/profile.d/mssql-tools.sh
+      args:
+        executable: /bin/bash
+      environment:
+        PATH: "$PATH:/opt/mssql-tools/bin"
