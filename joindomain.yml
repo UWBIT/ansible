@@ -1,5 +1,5 @@
 ---    
-- name: Install required packages    
+- name: Join Domain    
   apt:    
     name:    
       - realmd    
