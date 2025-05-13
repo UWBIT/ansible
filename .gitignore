@@ -3,3 +3,4 @@ zabbix/zabbix-certs/*
 files/*
 vault.yml
 hosts*
+docker/npm/.env
