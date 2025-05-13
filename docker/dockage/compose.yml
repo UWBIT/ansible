@@ -17,5 +17,3 @@ services:
       # ⚠️ 1. FULL path only. No relative path (MUST)
       # ⚠️ 2. Left Stacks Path === Right Stacks Path (MUST)
       - /opt/stacks:/opt/stacks
-    environment:
-      # Tell Dockge where is your stacks directory
