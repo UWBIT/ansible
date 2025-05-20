@@ -1,0 +1,45 @@
+ 
+TTL    Fqdn                              Name            ProvisioningState    ResourceGroup
+-----  --------------------------------  --------------  -------------------  ---------------
+3600   uwbacmebottest.infradev.uwb.edu.  uwbacmebottest  Succeeded            inf-operations
+
+ Created the role definition: 
+ 
+az role definition create --role-definition '{
+    "Name": "UWB DNS TXT Record Contributor",
+    "Description": "Used in UWB automation workflows for LetsEncrypt DNS challenges",
+    "Actions": [
+        "Microsoft.Authorization/*/read",
+        "Microsoft.Insights/alertRules/*",
+        "Microsoft.Network/dnsZones/TXT/*",
+        "Microsoft.Network/dnsZones/read",
+        "Microsoft.ResourceHealth/availabilityStatuses/read",
+        "Microsoft.Resources/deployments/*",
+        "Microsoft.Resources/subscriptions/resourceGroups/read"
+    ],
+    "DataActions": [],
+    "NotDataActions": [],
+    "AssignableScopes": ["/subscriptions/a4147320-b638-4297-a93b-12d9017a86c1"]
+}'
+ 
+Created the ServicePrincipal: 
+ 
+az ad sp create-for-rbac --name UWBAcmeBot --role "UWB DNS TXT Record Contributor" --scopes /subscriptions/a4147320-b638-4297-a93b-12d9017a86c1
+Outputs the creds: 
+ 
+AppId                                 DisplayName    Password                                  Tenant
+------------------------------------  -------------  ----------------------------------------  ------------------------------------
+<redacted>                            UWBAcmeBot     <redacted>                                f6b6dd5b-f02f-441a-99a0-162ac5060bd2
+ 
+Logged in as it to test: 
+ 
+az login --service-principal -u "redacted" -p "redacted" --tenant "f6b6dd5b-f02f-441a-99a0-162ac5060bd2"
+Created a test record: 
+AppId                                 DisplayName    Password                                  Tenant
+------------------------------------  -------------  ----------------------------------------  ------------------------------------
+redacted                              UWBAcmeBot     redacted                                  f6b6dd5b-f02f-441a-99a0-162ac5060bd2
+ 
+ 
+Tricky bits are finding your subscription and tenantID via az account show
+So I'll put the deets into LastPass and then we can get certbot on board
+ 
