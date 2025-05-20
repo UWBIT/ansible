@@ -39,7 +39,8 @@ AppId                                 DisplayName    Password                   
 ------------------------------------  -------------  ----------------------------------------  ------------------------------------
 redacted                              UWBAcmeBot     redacted                                  f6b6dd5b-f02f-441a-99a0-162ac5060bd2
  
- 
+
 Tricky bits are finding your subscription and tenantID via az account show
 So I'll put the deets into LastPass and then we can get certbot on board
- 
+
+https://www.robokiwi.com/wiki/azure/dns/lets-encrypt/ 
