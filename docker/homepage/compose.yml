@@ -1,0 +1,13 @@
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    container_name: homepage
+    env_file: .env
+    ports:
+      - 3000:3000
+    volumes:
+      - /infra/docker/homepage-nict/config:/app/config # Make sure your local config directory exists
+      - /var/run/docker.sock:/var/run/docker.sock # (optional) For docker integrations
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: 172.22.158.212:3000,172.22.158.210:3000 # required, may need port. See gethomepage.dev/installation/#homepage_allowed_hosts
+networks: {}

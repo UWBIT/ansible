@@ -14,15 +14,15 @@
       apt:
         update_cache: yes
 
-    - name: Set up SSH to use PAM authentication and limit users
-      copy:
-        content: |
-          PAMAuthenticating yes
-          AllowTcpForwarding no
-          PermitRootLogin no
-          X11Forwarding no
-          PermitOpen "sftp"
-        dest: /etc/ssh/sshd_config
+#    - name: Set up SSH to use PAM authentication and limit users
+#      copy:
+#        content: |
+#          PAMAuthenticating yes
+#          AllowTcpForwarding no
+#          PermitRootLogin no
+#          X11Forwarding no
+#          PermitOpen "sftp"
+#        dest: /etc/ssh/sshd_config
 
     - name: Add multiple SSH keys to authorized_keys
       authorized_key:
