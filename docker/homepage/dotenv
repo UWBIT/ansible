@@ -1,0 +1,6 @@
+# This file needs to be renamed .env and placed in the same location as the compose.yml
+# VARIABLE=value #comment
+
+HOMEPAGE_VAR_ZABBIX_API_KEY=[your personal api key]
+HOMEPAGE_VAR_TRUENAS0_API_KEY=[your personal api key]
+HOMEPAGE_VAR_TRUENAS1_API_KEY=[your personal api key]

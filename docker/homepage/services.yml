@@ -1,0 +1,126 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/services/
+
+# https://technotim.live/posts/homepage-dashboard/
+
+#Icons:
+# https://github.com/walkxcode/dashboard-icons
+# https://pictogrammers.com/library/mdi/
+# https://simpleicons.org/
+
+
+- Communication:
+    - Teams:
+        icon: mdi-microsoft-teams
+        href: https://teams.microsoft.com/v2/
+#        description: Homepage is awesome
+    - OWA:
+        icon: mdi-microsoft-outlook
+        href: https://outlook.office.com/mail
+
+- Task Management:
+    - Planner:
+        icon: mdi-notebook-outline
+        href: https://planner.cloud.microsoft/
+        description: Microsoft Planner
+    - Lists:
+        icon: mdi-notebook-outline
+        href: https://uwnetid-my.sharepoint.com/personal/nict_uw_edu/Lists/Apache%20Guac/AllItems.aspx?env=WebViewList&npsAction=createList
+        description: Microsoft Lists
+    - Loop:
+        icon: mdi-notebook-outline
+        href: https://loop.cloud.microsoft/
+        description: Microsoft Loop
+    - UW Connect:
+        icon: mdi-room-service-outline
+        href: https://uw.service-now.com/
+        description: ServiceNow
+    - Sharepoint:
+        icon: microsoft-sharepoint.png
+        href: https://uwnetid-my.sharepoint.com/my
+        description: ServiceNow
+
+- Remote Management:
+    - UWB WAC:
+        icon: mdi-remote-desktop
+        href: https://wac.uwb.edu/
+        #description: Microsoft Planner
+    - INFRA WAC:
+        icon: mdi-remote-desktop
+        href: https://wac.infra.uwb.edu/
+        #description: Microsoft Planner
+    - INFRA RDS:
+        icon: mdi-remote-desktop
+        href: https://rdsh1.infra.uwb.edu/rdweb
+        #description: Microsoft Planner
+    - Azure:
+        icon: azure.png # icons found here https://github.com/walkxcode/dashboard-icons
+        href: https://portal.azure.com/#home
+        #description: Microsoft Planner
+    - Guacamole:
+        icon: guacamole.png # icons found here https://github.com/walkxcode/dashboard-icons
+        href: https://172.22.158.85:8443/#/
+        #description: Microsoft Planner
+    - V-Center:
+        icon: vmware.png # icons found here https://github.com/walkxcode/dashboard-icons
+        href: http://viops-ph2.uwb.edu
+        #description: Microsoft Planner
+    - Proxmox(lb2):
+        icon: proxmox.png # icons found here https://github.com/walkxcode/dashboard-icons
+        href: https://172.21.200.240:8006/
+        #description: Microsoft Planner
+
+- TrueNAS:
+    - TNAS0:
+        icon: si-truenas-#ffffff
+        href: https://tnas0-ph2.uwb.edu/ui/sessions/signin
+        widget:
+          type: truenas
+          url: https://172.21.209.73
+          key: "{{HOMEPAGE_VAR_TRUENAS0_API_KEY}}"
+          nasType: core
+    - TNAS1:
+        icon: si-truenas-#ffffff
+        href: https://tnas1-twr.uwb.edu/ui/sessions/signinn
+        widget:
+          type: truenas
+          url: https://tnas1-twr.uwb.edu
+          key: "{{HOMEPAGE_VAR_TRUENAS1_API_KEY}}"
+          nasType: core
+
+- Containers:
+    - dockage0 (primary):
+        icon: mdi-docker
+        href: http://inf-dockage0-tw.infradev.uwb.edu:5001/
+        #description: Homepage is the best
+    - portainer:
+        icon: portainer.png
+        href: https://172.21.200.252:9443/
+        #description: Homepage is the best
+
+- Monitoring:
+    - Zabbix (primary):
+        icon: zabbix.png
+        href: https://zabbix.uwb.edu
+        widget:
+          type: zabbix
+          url: https://172.22.158.105
+          key: "{{HOMEPAGE_VAR_ZABBIX_API_KEY}}"
+        #description: Homepage is the best
+    - Zabbix-azure:
+        icon: zabbix.png
+        href: https://inf-zabbix-az.infra.uwb.edu
+        #description: Homepage is the best
+
+- Personal tools:
+    - Ollama:
+        icon: ollama.png
+        href: http://172.22.158.92:8080/
+        description: local LLM
+    - LinkedIn Learning:
+        #icon: linkdin.png
+        href: https://www.linkedin.com/learning
+    - PluralSight:
+        icon: pluralsight.png
+        href: https://www.pluralsight.com/
