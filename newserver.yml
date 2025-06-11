@@ -31,6 +31,34 @@
         key: "{{ lookup('file', item) }}"
       with_items: "{{ ssh_keys }}"
 
+    - name: Remove Snap Packages
+      when:
+        - ansible_facts.services['snapd.service'] is defined
+        - ansible_facts.services['snapd.service'].state == 'running'
+      block:
+        - name: Get snap packages
+          ansible.builtin.command:
+            cmd: snap list
+          changed_when: false
+          register: snap_packages
+
+        - name: Remove snap packages
+          community.general.snap:
+            name: '{{ item | split | first }}'
+            state: absent
+          loop: '{{ snap_packages.stdout_lines[1:] }}'
+          when: snap_packages.stdout_lines[1:] is iterable
+
+    - name: Disable snapd services
+      ansible.builtin.systemd_service:
+        name: '{{ item }}'
+        state: stopped
+        enabled: false
+      loop:
+        - snapd.service
+        - snapd.seeded.service
+        - snapd.socket
+
     - name: Install pre-requisite packages
       apt:
         name:

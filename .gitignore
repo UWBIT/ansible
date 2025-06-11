@@ -4,3 +4,5 @@ files/*
 vault.yml
 hosts*
 docker/npm/.env
+*.env
+docker/snipeit/*

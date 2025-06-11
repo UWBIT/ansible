@@ -44,7 +44,7 @@
         repo: >-
           deb [arch={{ arch_mapping[ansible_architecture] | default(ansible_architecture) }}
           signed-by=/etc/apt/keyrings/docker.gpg]
-          https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable
+          https://download.docker.com/linux/debian {{ ansible_lsb.codename }} stable
         filename: docker
         state: present
 
