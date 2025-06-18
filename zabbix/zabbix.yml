@@ -1,40 +1,61 @@
 ---
-- hosts: servers
+- name: Install and configure Zabbix Agent 2
+  hosts: servers
   become: yes
   vars:
-    zabbix_repo_url: "https://repo.zabbix.com/zabbix/{{ ansible_distribution_id }}/release/{{ ansible_distribution_id }}/pool/main/z/zabbix-release/"
-    zabbix_repository_package: "zabbix-release_{{ zabbix_version }}+{{ ansible_lsb_codename }}_all.deb"
-    zabbix_agent2_package: "zabbix-agent2"
+    zabbix_repo_map:
+      jammy: "https://repo.zabbix.com/zabbix/7.2/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.2-1+ubuntu22.04_all.deb"
+      focal: "https://repo.zabbix.com/zabbix/7.2/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.2-1+ubuntu20.04_all.deb"
+      bookworm: "https://repo.zabbix.com/zabbix/7.2/release/debian/pool/main/z/zabbix-release/zabbix-release_7.2-1+debian12_all.deb"
+      bullseye: "https://repo.zabbix.com/zabbix/7.2/release/debian/pool/main/z/zabbix-release/zabbix-release_7.2-1+debian11_all.deb"
+
   tasks:
-    - name: Install Zabbix repository
-      shell: wget {{ zabbix_repo_url }}{{ zabbix_repository_package }} && dpkg -i {{ zabbix_repository_package }}; apt update
-      when: ansible_distribution == "Debian" or (ansible_distribution == "Ubuntu" and ansible_lsb_codename in ["buster", "bullseye"])
 
-    - name: Install Zabbix Agent 2 (Debian)
-      apt: name={{ zabbix_agent2_package }} state=present
-      when: ansible_distribution == "Debian" and not "zabbix-agent2" in package.name
-      notify:
-        - install Zabbix Agent 2 (Ubuntu)
+    - name: Gather OS release info
+      ansible.builtin.setup:
+        gather_subset: "!all,min,distribution"
 
-    - name: Install Zabbix Agent 2 (Ubuntu)
-      apt: name={{ zabbix_agent2_package }} state=present
-      when: ansible_distribution == "Ubuntu" and not "zabbix-agent2" in package.name
-      notify:
-        - install Zabbix Agent 2 (Debian)
+    - name: Set Zabbix repo URL based on codename
+      set_fact:
+        zabbix_repo_url: "{{ zabbix_repo_map[ansible_distribution_release | lower] }}"
+      when: ansible_distribution_release | lower in zabbix_repo_map
 
-    - name: Configure Zabbix agent config file
-      blockinfile:
-        path: /etc/zabbix/zabbix_agent2.conf
-        create: false
-        block: |
-          Server=172.22.158.105
-          ListenPort=10050
-          ServerActive=172.22.158.105:10051
-          Hostname={{ inventory_hostname }}
-        insertbefore: '' # Insert at the beginning of the file
+    - name: Fail if OS/codename is unsupported
+      ansible.builtin.fail:
+        msg: "Unsupported OS or codename: {{ ansible_distribution }} {{ ansible_distribution_release }}"
+      when: zabbix_repo_url is not defined
 
-    - name: Start Zabbix agent 2 process
-      service:
+    - name: Download Zabbix release package
+      ansible.builtin.get_url:
+        url: "{{ zabbix_repo_url }}"
+        dest: /tmp/zabbix-release.deb
+
+    - name: Install Zabbix release package
+      ansible.builtin.apt:
+        deb: /tmp/zabbix-release.deb
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install Zabbix Agent 2
+      ansible.builtin.apt:
         name: zabbix-agent2
-        state: started
+        state: present
+
+    - name: Configure Zabbix Agent 2
+      ansible.builtin.lineinfile:
+        path: /etc/zabbix/zabbix_agent2.conf
+        regexp: '^{{ item.key }}='
+        line: '{{ item.key }}={{ item.value }}'
+      loop:
+        - { key: 'Server', value: '172.22.158.105' }
+        - { key: 'ListenPort', value: '10050' }
+        - { key: 'ServerActive', value: '172.22.158.105:10051' }
+        - { key: 'Hostname', value: '{{ ansible_hostname }}' }
+
+    - name: Enable and start Zabbix Agent 2
+      ansible.builtin.systemd:
+        name: zabbix-agent2
         enabled: yes
+        state: restarted
