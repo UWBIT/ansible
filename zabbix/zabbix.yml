@@ -1,70 +1,40 @@
-- name: Install Zabbix client on Ubuntu servers
-  hosts: zclient
+---
+- hosts: servers
   become: yes
-
   vars:
-    zabbix_version: 6.4  # Adjust this according to your Zabbix version
-    zabbix_server_ip: 10.0.10.23  # Replace with your Zabbix server IP
-    zabbix_agent_ssl_cert_path: "/etc/zabbix/ssl/zabbix_agent.crt"
-    zabbix_agent_ssl_key_path: "/etc/zabbix/ssl/zabbix_agent.key"
-    zabbix_agent_ssl_ca_path: "/etc/zabbix/ssl/zabbix_ca.crt"
-    ssl_cert_dir: "/etc/zabbix/ssl"
-    certs_src_dir: "/home/admin/zabbix"  # Directory where SSL certificates are located
-    ubuntu_ver: "jammy"
-
+    zabbix_repo_url: "https://repo.zabbix.com/zabbix/{{ ansible_distribution_id }}/release/{{ ansible_distribution_id }}/pool/main/z/zabbix-release/"
+    zabbix_repository_package: "zabbix-release_{{ zabbix_version }}+{{ ansible_lsb_codename }}_all.deb"
+    zabbix_agent2_package: "zabbix-agent2"
   tasks:
-    #- name: Install prerequisites - Left this section just in case it's needed in the future
-    #  apt:
-    #    name:
-    #      - python2-minimal
-    #      - python-pip
-    #    state: present
+    - name: Install Zabbix repository
+      shell: wget {{ zabbix_repo_url }}{{ zabbix_repository_package }} && dpkg -i {{ zabbix_repository_package }}; apt update
+      when: ansible_distribution == "Debian" or (ansible_distribution == "Ubuntu" and ansible_lsb_codename in ["buster", "bullseye"])
 
-    - name: Add Zabbix repository
-      apt_repository:
-        repo: "deb http://repo.zabbix.com/zabbix/{{ zabbix_version }}/ubuntu/dists/{{ubuntu_ver}}/{{ ansible_distribution_release }} main"
-        state: present
-        update_cache: yes
+    - name: Install Zabbix Agent 2 (Debian)
+      apt: name={{ zabbix_agent2_package }} state=present
+      when: ansible_distribution == "Debian" and not "zabbix-agent2" in package.name
+      notify:
+        - install Zabbix Agent 2 (Ubuntu)
 
-    #- name: Add Zabbix repository GPG key
-    #  apt_key:
-    #    url: "https://repo.zabbix.com/zabbix/{{ zabbix_version }}/ubuntu/dists/{{ ansible_distribution_release }}/Release.key"
-    #    state: present
-    
-    - name: Update apt cache
-      apt:
-        update_cache: yes
+    - name: Install Zabbix Agent 2 (Ubuntu)
+      apt: name={{ zabbix_agent2_package }} state=present
+      when: ansible_distribution == "Ubuntu" and not "zabbix-agent2" in package.name
+      notify:
+        - install Zabbix Agent 2 (Debian)
 
-    - name: Install Zabbix agent
-      apt:
-        name: zabbix-agent
-        state: present
+    - name: Configure Zabbix agent config file
+      blockinfile:
+        path: /etc/zabbix/zabbix_agent2.conf
+        create: false
+        block: |
+          Server=172.22.158.105
+          ListenPort=10050
+          ServerActive=172.22.158.105:10051
+          Hostname={{ inventory_hostname }}
+        insertbefore: '' # Insert at the beginning of the file
 
-    - name: Create SSL directory
-      file:
-        path: "{{ ssl_cert_dir }}"
-        state: directory
-
-    - name: Transfer SSL certificates
-      copy:
-        src: "{{ item }}"
-        dest: "{{ ssl_cert_dir }}"
-        mode: 0644
-      with_items:
-        - "{{ certs_src_dir }}/zabbix_agent.crt"
-        - "{{ certs_src_dir }}/zabbix_agent.key"
-        - "{{ certs_src_dir }}/zabbix_ca.crt"
-
-    - name: Configure Zabbix agent
-      template:
-        src: zabbix_agentd.conf.j2
-        dest: /etc/zabbix/zabbix_agentd.conf
-      notify: restart zabbix-agent
-      vars:
-        zabbix_server_ip: "{{ hostvars[inventory_hostname] }}"
-
-  handlers:
-    - name: restart zabbix-agent
+    - name: Start Zabbix agent 2 process
       service:
-        name: zabbix-agent
-        state: restarted
+        name: zabbix-agent2
+        state: started
+        enabled: yes
