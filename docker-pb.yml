@@ -96,14 +96,6 @@
         owner: infra
         group: docker
 
-    - name: Create directory Dozzle
-      ansible.builtin.file:
-        path: /infra/docker/dozzle
-        state: directory
-        mode: '0755'
-        owner: infra
-        group: docker        
-
         # Copy Docker Compose files from source directories
     - name: Copy Dockage Docker Compose file
       ansible.builtin.copy:
@@ -111,19 +103,8 @@
         dest: /infra/docker/dockage
         mode: '0644'
 
-    - name: Copy Dozzle Docker Compose file
-      ansible.builtin.copy:
-        src: /infra/ansible/docker/dozzle/compose.yml
-        dest: /infra/docker/dozzle
-        mode: '0644'
-
-    # Run Docker Compose for Dockage and Dozzle
+    # Run Docker Compose for Dockage
     - name: Start Dockage with Docker Compose
       ansible.builtin.command: docker compose -f /infra/docker/dockage/compose.yml up -d
       args:
         chdir: /infra/docker/dockage
-
-#    - name: Start Dozzle with Docker Compose
-#      ansible.builtin.command: docker-compose -f /infra/docker/dozzle up -d
-#      args:
-#        chdir: /infra/docker/dozzle

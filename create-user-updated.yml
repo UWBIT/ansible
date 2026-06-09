@@ -1,0 +1,75 @@
+- name: Configure SSL key, create user, generate SSH key, and add NOPASSWD to sudoers
+  hosts: new
+  become: yes
+  vars_prompt:
+    - name: prompt_user_name
+      prompt: "Enter username to create"
+      private: no
+      default: ""
+    - name: prompt_ssh_keys_csv
+      prompt: "Enter SSH public key file paths (comma-separated, optional)"
+      private: no
+      default: ""
+  vars:
+    # Precedence: -e vars > environment vars > .env file > prompts
+    env_user_name: "{{ lookup('ansible.builtin.env', 'NEW_USER_NAME') | default('', true) | trim }}"
+    dotenv_user_name: "{{ lookup('ansible.builtin.ini', 'NEW_USER_NAME type=properties file=' ~ playbook_dir ~ '/.env', errors='ignore') | default('', true) | trim }}"
+    new_username: "{{ user_name | default((env_user_name | length > 0) | ternary(env_user_name, ((dotenv_user_name | length > 0) | ternary(dotenv_user_name, prompt_user_name))), true) | trim }}"
+    ssh_key_type: "rsa"
+    ssh_key_bits: 2048
+    ssh_key_comment: "admin@{{ ansible_hostname }}"
+    ssh_key_dest: "/home/{{ new_username }}/.ssh/id_{{ ssh_key_type }}"
+    default_ssh_keys:
+      - "files/certs/webservices/{{ new_username }}.pub"
+    prompt_ssh_keys: "{{ (prompt_ssh_keys_csv | default('') | trim | length > 0) | ternary(prompt_ssh_keys_csv.split(',') | map('trim') | list, default_ssh_keys) }}"
+    env_ssh_keys_csv: "{{ lookup('ansible.builtin.env', 'NEW_USER_SSH_KEYS') | default('', true) | trim }}"
+    dotenv_ssh_keys_csv: "{{ lookup('ansible.builtin.ini', 'NEW_USER_SSH_KEYS type=properties file=' ~ playbook_dir ~ '/.env', errors='ignore') | default('', true) | trim }}"
+    env_ssh_keys: "{{ (env_ssh_keys_csv | length > 0) | ternary(env_ssh_keys_csv.split(',') | map('trim') | list, ((dotenv_ssh_keys_csv | length > 0) | ternary(dotenv_ssh_keys_csv.split(',') | map('trim') | list, prompt_ssh_keys))) }}"
+    ssh_keys: "{{ user_ssh_keys | default(env_ssh_keys, true) }}"
+
+  tasks:
+    - name: Ensure username was provided
+      ansible.builtin.assert:
+        that:
+          - new_username | length > 0
+        fail_msg: "Username is required. Provide -e user_name=..., set NEW_USER_NAME, add it to .env, or enter it at the prompt."
+
+    - name: Create user
+      user:
+        name: "{{ new_username }}"
+        state: present
+        shell: /bin/bash
+
+    - name: Add new user to sudo group
+      user:
+        name: "{{ new_username }}"
+        groups: sudo
+        append: yes
+
+    - name: Create .ssh directory 
+      ansible.builtin.file:
+        path: /home/{{ new_username }}/.ssh/
+        state: directory
+        owner: "{{ new_username }}"
+        group: "{{ new_username }}"
+
+    - name: Generate SSH key for new user
+      community.crypto.openssh_keypair:
+        path: "{{ ssh_key_dest }}"
+        type: "{{ ssh_key_type }}"
+        size: "{{ ssh_key_bits }}"
+        comment: "{{ ssh_key_comment }}"
+        owner: "{{ new_username }}"
+
+    - name: Add multiple SSH keys to authorized_keys
+      authorized_key:
+        user: "{{ new_username }}"
+        state: present
+        key: "{{ lookup('file', item) }}"
+      loop: "{{ ssh_keys }}"
+
+    - name: Add NOPASSWD to sudoers for new user
+      lineinfile:
+        dest: /etc/sudoers
+        line: "{{ new_username }} ALL=(ALL) NOPASSWD: ALL"
+        validate: '/usr/sbin/visudo -cf %s'

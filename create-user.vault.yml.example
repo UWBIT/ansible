@@ -1,0 +1,9 @@
+# Copy to vault/create-user.vault.yml and encrypt with ansible-vault.
+# Example:
+#   mkdir -p vault
+#   cp create-user.vault.yml.example vault/create-user.vault.yml
+#   ansible-vault encrypt vault/create-user.vault.yml
+
+vault_create_user_name: "kevin"
+vault_create_user_ssh_keys:
+  - "files/certs/kevin.pub"

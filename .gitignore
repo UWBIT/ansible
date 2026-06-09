@@ -4,5 +4,14 @@ files/*
 vault.yml
 hosts*
 docker/npm/.env
+docker/npm/*.txt
+docker/dozzle*
+docker/quacomole-docker-compose/*
+docker/uptime-kuma*
 *.env
 docker/snipeit/*
+vault/*
+!vault/*.example
+!vault/.vault-pass.sh
+archive/*
+ansible.cfg

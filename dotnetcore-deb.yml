@@ -1,0 +1,89 @@
+---
+- name: Install .NET and PowerShell on Debian
+  hosts: dotnet
+  become: yes
+
+  tasks:
+    - name: Ensure target host is Debian
+      assert:
+        that:
+          - ansible_distribution == "Debian"
+        fail_msg: "This playbook is intended for Debian hosts only."
+
+    - name: Update the list of packages
+      apt:
+        update_cache: yes
+
+    - name: Install pre-requisite packages
+      apt:
+        name:
+          - wget
+          - ca-certificates
+          - gpg
+          - apt-transport-https
+        state: present
+
+    - name: Get the version of Debian
+      shell: ". /etc/os-release && echo $VERSION_ID"
+      register: debian_version
+
+    - name: Get the codename of Debian
+      shell: ". /etc/os-release && echo $VERSION_CODENAME"
+      register: debian_codename
+
+    - name: Download the Microsoft repository keys
+      get_url:
+        url: "https://packages.microsoft.com/config/debian/{{ debian_version.stdout }}/packages-microsoft-prod.deb"
+        dest: /tmp/packages-microsoft-prod.deb
+
+    - name: Register the Microsoft repository keys
+      shell: "dpkg -i /tmp/packages-microsoft-prod.deb"
+
+    - name: Delete the Microsoft repository keys file
+      file:
+        path: /tmp/packages-microsoft-prod.deb
+        state: absent
+
+    - name: Remove existing Microsoft repository list
+      file:
+        path: /etc/apt/sources.list.d/microsoft-prod.list
+        state: absent
+        force: yes
+
+    - name: Add Microsoft repository
+      copy:
+        content: "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/{{ debian_version.stdout }}/prod {{ debian_codename.stdout }} main"
+        dest: /etc/apt/sources.list.d/microsoft-prod.list
+
+    - name: Update the list of packages after adding packages.microsoft.com
+      apt:
+        update_cache: yes
+
+    - name: Install dotnetcore & powershell
+      apt:
+        name:
+          - dotnet-sdk-10.0
+          - aspnetcore-runtime-10.0
+          - dotnet-runtime-10.0
+          - powershell
+          - jq
+        state: latest
+
+    - name: Block .NET 11 package installs
+      ansible.builtin.copy:
+        dest: /etc/apt/preferences.d/dotnet-major-version.pref
+        content: |
+          Package: dotnet-sdk-11.0
+          Pin: version *
+          Pin-Priority: -1
+
+          Package: aspnetcore-runtime-11.0
+          Pin: version *
+          Pin-Priority: -1
+
+          Package: dotnet-runtime-11.0
+          Pin: version *
+          Pin-Priority: -1
+        owner: root
+        group: root
+        mode: "0644"

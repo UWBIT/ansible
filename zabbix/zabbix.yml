@@ -1,8 +1,9 @@
 ---
 - name: Install and configure Zabbix Agent 2
-  hosts: servers
+  hosts: zabbix
   become: yes
   vars:
+    zabbix_release_deb_path: /tmp/zabbix-release.deb
     zabbix_repo_map:
       jammy: "https://repo.zabbix.com/zabbix/7.2/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.2-1+ubuntu22.04_all.deb"
       focal: "https://repo.zabbix.com/zabbix/7.2/release/ubuntu/pool/main/z/zabbix-release/zabbix-release_7.2-1+ubuntu20.04_all.deb"
@@ -28,11 +29,12 @@
     - name: Download Zabbix release package
       ansible.builtin.get_url:
         url: "{{ zabbix_repo_url }}"
-        dest: /tmp/zabbix-release.deb
+        dest: "{{ zabbix_release_deb_path }}"
+        mode: "0644"
 
     - name: Install Zabbix release package
       ansible.builtin.apt:
-        deb: /tmp/zabbix-release.deb
+        deb: "{{ zabbix_release_deb_path }}"
 
     - name: Update apt cache
       ansible.builtin.apt:
