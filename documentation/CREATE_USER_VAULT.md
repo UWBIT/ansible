@@ -13,24 +13,13 @@ This guide explains how to use `create-user-vault.yml` with Ansible Vault only (
 - Ansible config using helper: `ansible.cfg`
 - Example vars template: `create-user.vault.yml.example`
 
-## Prerequisite
-
-Before running any commands in this guide, confirm the playbook exists:
-
-```bash
-cd /infra/ansible
-ls -l create-user-vault.yml
-```
-
-If the file is missing, restore it from your repo history (or from the branch where it was created) before continuing.
-
 ## Run the Playbook
 
 Before each run, edit the vault file for the account you want to create:
 
 ```bash
 cd /infra/ansible
-EDITOR=nano ansible-vault edit vault/users/newuser.vault.yml
+ansible-vault edit vault/users/newuser.vault.yml
 ```
 
 Set these values in the vault file:
