@@ -1,0 +1,62 @@
+---
+- name: Install and configure Zabbix Agent 2 on Rocky 9
+  hosts: zabbix
+  become: yes
+  vars:
+    zabbix_repo_rpm_url: https://repo.zabbix.com/zabbix/7.2/release/rhel/9/noarch/zabbix-release-latest-7.2.el9.noarch.rpm
+    zabbix_server_ip: 172.22.158.105
+    zabbix_rpm_gpg_keys:
+      - https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX-B5333005
+
+  tasks:
+    - name: Ensure this playbook runs only on Rocky Linux 9
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Rocky"
+          - ansible_distribution_major_version == "9"
+        fail_msg: "This playbook supports Rocky Linux 9 only. Detected {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Import Zabbix RPM GPG keys
+      ansible.builtin.rpm_key:
+        state: present
+        key: "{{ item }}"
+      loop: "{{ zabbix_rpm_gpg_keys }}"
+
+    - name: Install Zabbix repository package for EL9
+      ansible.builtin.dnf:
+        name: "{{ zabbix_repo_rpm_url }}"
+        state: present
+        disable_gpg_check: false
+
+    - name: Refresh dnf metadata
+      ansible.builtin.dnf:
+        update_cache: yes
+
+    - name: Install Zabbix Agent 2
+      ansible.builtin.dnf:
+        name: zabbix-agent2
+        state: present
+
+    - name: Configure Zabbix Agent 2
+      ansible.builtin.lineinfile:
+        path: /etc/zabbix/zabbix_agent2.conf
+        regexp: '^{{ item.key }}='
+        line: '{{ item.key }}={{ item.value }}'
+      loop:
+        - { key: 'Server', value: '{{ zabbix_server_ip }}' }
+        - { key: 'ListenPort', value: '10050' }
+        - { key: 'ServerActive', value: '{{ zabbix_server_ip }}:10051' }
+        - { key: 'Hostname', value: '{{ ansible_hostname }}' }
+      notify: Restart Zabbix Agent 2
+
+    - name: Enable and start Zabbix Agent 2
+      ansible.builtin.systemd:
+        name: zabbix-agent2
+        enabled: yes
+        state: started
+
+  handlers:
+    - name: Restart Zabbix Agent 2
+      ansible.builtin.systemd:
+        name: zabbix-agent2
+        state: restarted

@@ -43,9 +43,6 @@
           - apt-transport-https
           - software-properties-common
           - qemu-guest-agent
-#          - tpm2-abrmd
-#          - tpm2-tools
-#          - libtss2-rc0
           - gh
           - git
         state: present

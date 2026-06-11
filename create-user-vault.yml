@@ -42,7 +42,7 @@
     - name: Add new user to sudo group
       ansible.builtin.user:
         name: "{{ new_username }}"
-        groups: sudo
+        groups: wheel
         append: yes
 
     - name: Create .ssh directory
