@@ -1,0 +1,122 @@
+
+---
+- name: Install CrowdStrike Falcon Sensor on Debian 12
+  hosts: crowdstrike
+  remote_user: infra
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - env/crowdstrike-secrets.vault.yml
+  vars:
+    crowdstrike_deb_url: "https://downloads.crowdstrike.com/sensor/deb/falcon-sensor_7.29.0-18202_amd64.deb"
+    deb_path: "/tmp/falcon-sensor.deb"
+    crowdstrike_tag: "uwb_linux"
+  tasks:
+    - name: Require CrowdStrike CID variable
+      assert:
+        that:
+          - crowdstrike_cid is defined
+          - crowdstrike_cid | trim | length > 0
+        fail_msg: "Set crowdstrike_cid in env/crowdstrike-secrets.vault.yml (Ansible Vault encrypted)."
+
+    - name: Copy CrowdStrike Falcon Sensor .deb from local deb/
+      copy:
+        src: "deb/falcon-sensor.deb"
+        dest: "{{ deb_path }}"
+        mode: '0644'
+    - name: Install CrowdStrike Falcon Sensor .deb
+      apt:
+        deb: "{{ deb_path }}"
+        state: present
+
+    - name: Ensure falconctl exists
+      stat:
+        path: /opt/CrowdStrike/falconctl
+      register: falconctl_stat
+
+    - name: Read configured CrowdStrike CID
+      command: /opt/CrowdStrike/falconctl -g --cid
+      register: falconctl_cid_current
+      changed_when: false
+      failed_when: false
+      when: falconctl_stat.stat.exists
+
+    - name: Read configured CrowdStrike tag
+      command: /opt/CrowdStrike/falconctl -g --tags
+      register: falconctl_tag_current
+      changed_when: false
+      failed_when: false
+      when: falconctl_stat.stat.exists
+
+    - name: Configure CrowdStrike CID and Tag
+      command: /opt/CrowdStrike/falconctl -s --cid={{ crowdstrike_cid }} --tags={{ crowdstrike_tag }}
+      no_log: true
+      when:
+        - falconctl_stat.stat.exists
+        - falconctl_cid_current.stdout is not search(crowdstrike_cid)
+          or falconctl_tag_current.stdout is not search(crowdstrike_tag)
+      notify: restart falcon-sensor
+
+    - name: Verify CrowdStrike CID configuration
+      command: /opt/CrowdStrike/falconctl -g --cid
+      when: falconctl_stat.stat.exists
+      register: falconctl_cid_check
+      changed_when: false
+
+    - name: Verify CrowdStrike tag configuration
+      command: /opt/CrowdStrike/falconctl -g --tags
+      when: falconctl_stat.stat.exists
+      register: falconctl_tag_check
+      changed_when: false
+
+    - name: Enable and start falcon-sensor service
+      systemd:
+        name: falcon-sensor
+        enabled: yes
+        state: started
+
+    - name: Ensure pending handlers run before health checks
+      meta: flush_handlers
+
+    - name: Check falcon-sensor service status
+      systemd:
+        name: falcon-sensor
+      register: falcon_service_status
+
+    - name: Query CrowdStrike agent ID
+      command: /opt/CrowdStrike/falconctl -g --aid
+      when: falconctl_stat.stat.exists
+      register: falconctl_aid_check
+      changed_when: false
+      failed_when: false
+
+    - name: Collect recent falcon-sensor logs when service is not active
+      command: journalctl -u falcon-sensor -n 50 --no-pager
+      register: falcon_journal
+      changed_when: false
+      failed_when: false
+      when: falcon_service_status.status.ActiveState != "active"
+
+    - name: Show CrowdStrike health summary
+      debug:
+        msg: |
+          CrowdStrike summary for {{ inventory_hostname }}:
+          - Service ActiveState: {{ falcon_service_status.status.ActiveState | default('unknown') }}
+          - Service Enabled: {{ falcon_service_status.status.UnitFileState | default('unknown') }}
+          - CID: {{ falconctl_cid_check.stdout | default('unavailable') }}
+          - Tag: {{ falconctl_tag_check.stdout | default('unavailable') }}
+          - AID: {{ falconctl_aid_check.stdout | default('unavailable') }}
+
+    - name: Show recent falcon-sensor logs for troubleshooting
+      debug:
+        var: falcon_journal.stdout_lines
+      when:
+        - falcon_journal is defined
+        - falcon_journal.stdout is defined
+        - falcon_journal.stdout | length > 0
+
+  handlers:
+    - name: restart falcon-sensor
+      systemd:
+        name: falcon-sensor
+        state: restarted

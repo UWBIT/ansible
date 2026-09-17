@@ -1,0 +1,162 @@
+---
+# =============================================================================
+# Proxmox - Create Debian 12 Cloud-Init VM
+# =============================================================================
+# Requirements:
+#   - community.general collection: ansible-galaxy collection install community.general
+#   - proxmoxer + requests on the Proxmox host: pip install proxmoxer requests
+#
+# Usage:
+#   ansible-playbook proxmox_create_debian12_vm.yml
+#   ansible-playbook proxmox_create_debian12_vm.yml -e "vm_id=200 vm_name=my-server"
+# =============================================================================
+
+- name: Create Debian 12 Cloud-Init VM on Proxmox
+  hosts: proxmox_host          # Target your Proxmox node directly via SSH
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir }}/../vault/debian/proxmox_create_debian12_vm.vault.yml"
+
+  tasks:
+
+    # -------------------------------------------------------------------------
+    # 1. Download the Debian 12 Cloud Image
+    # -------------------------------------------------------------------------
+    - name: Ensure ISO/template directory exists
+      ansible.builtin.file:
+        path: "{{ iso_storage_path }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download Debian 12 genericcloud image
+      ansible.builtin.get_url:
+        url: "{{ debian_image_url }}"
+        dest: "{{ image_download_path }}"
+        mode: "0644"
+        timeout: 300
+      register: image_download
+
+    - name: Verify image download checksum (SHA512)
+      block:
+        - name: Download SHA512SUMS file
+          ansible.builtin.get_url:
+            url: "https://cloud.debian.org/images/cloud/bookworm/latest/SHA512SUMS"
+            dest: "/tmp/debian12-SHA512SUMS"
+            mode: "0644"
+
+        - name: Validate image checksum
+          ansible.builtin.command:
+            cmd: "grep {{ debian_image_filename }} /tmp/debian12-SHA512SUMS | sha512sum --check --status"
+            chdir: "{{ iso_storage_path }}"
+          changed_when: false
+
+    # -------------------------------------------------------------------------
+    # 2. Create the VM Shell
+    # -------------------------------------------------------------------------
+    - name: Create Proxmox VM
+      community.general.proxmox_kvm:
+        api_host: "{{ proxmox_api_host }}"
+        api_user: "{{ proxmox_api_user }}"
+        api_password: "{{ proxmox_api_password }}"
+        validate_certs: false
+        node: "{{ proxmox_node }}"
+        vmid: "{{ vm_id }}"
+        name: "{{ vm_name }}"
+        state: present
+
+        # Hardware
+        cores: "{{ vm_cores }}"
+        sockets: "{{ vm_sockets }}"
+        memory: "{{ vm_memory_mb }}"
+        machine: "{{ vm_machine_type }}"
+        bios: "{{ vm_bios }}"
+        cpu: "host"
+        balloon: 0                    # Disable memory ballooning
+
+        # Boot & SCSI
+        boot: "order=scsi0"
+        scsihw: "virtio-scsi-pci"
+
+        # Network
+        net:
+          net0: "virtio,bridge={{ vm_bridge }}{{ ',tag=' + vm_vlan_tag if vm_vlan_tag else '' }}"
+
+        # Enable QEMU guest agent
+        agent: "enabled=1"
+
+        # Cloud-Init drive (must use an IDE or SCSI slot)
+        ide:
+          ide2: "{{ proxmox_storage }}:cloudinit"
+
+        # Serial console (required for cloud-init display)
+        serial:
+          serial0: "socket"
+        vga: "serial0"
+
+        # Cloud-Init settings
+        ciuser: "{{ ci_user }}"
+        cipassword: "{{ ci_password }}"
+        sshkeys: "{{ ci_ssh_public_key }}"
+        ipconfig:
+          ipconfig0: "{{ vm_ip_config }}"
+        nameservers: "{{ ci_nameserver }}"
+        searchdomains: "{{ ci_searchdomain }}"
+        ciupgrade: "{{ ci_upgrade }}"
+
+      register: vm_created
+
+    # -------------------------------------------------------------------------
+    # 3. Import the Cloud Image as the VM Disk
+    # -------------------------------------------------------------------------
+    - name: Import qcow2 image as VM disk
+      ansible.builtin.command:
+        cmd: >
+          qm importdisk {{ vm_id }} {{ image_download_path }} {{ proxmox_storage }}
+          --format qcow2
+      register: import_result
+      changed_when: "'Successfully imported' in import_result.stdout or import_result.rc == 0"
+
+    - name: Attach imported disk to VM as scsi0
+      ansible.builtin.command:
+        cmd: >
+          qm set {{ vm_id }}
+          --scsi0 {{ proxmox_storage }}:vm-{{ vm_id }}-disk-0
+      changed_when: true
+
+    # -------------------------------------------------------------------------
+    # 4. Resize the Disk
+    # -------------------------------------------------------------------------
+    - name: Resize VM disk to {{ vm_disk_size }}
+      ansible.builtin.command:
+        cmd: "qm resize {{ vm_id }} scsi0 {{ vm_disk_size }}"
+      changed_when: true
+
+    # -------------------------------------------------------------------------
+    # 5. Final Configuration
+    # -------------------------------------------------------------------------
+    - name: Set boot order explicitly
+      ansible.builtin.command:
+        cmd: "qm set {{ vm_id }} --boot order=scsi0"
+      changed_when: true
+
+    - name: Convert VM to template (optional — comment out if you want a live VM)
+      ansible.builtin.command:
+        cmd: "qm template {{ vm_id }}"
+      changed_when: true
+      # Remove or comment this task if you want to start the VM directly
+
+    # -------------------------------------------------------------------------
+    # 6. Summary
+    # -------------------------------------------------------------------------
+    - name: Display VM creation summary
+      ansible.builtin.debug:
+        msg:
+          - "✅ VM Created Successfully"
+          - "   Name   : {{ vm_name }}"
+          - "   VM ID  : {{ vm_id }}"
+          - "   Node   : {{ proxmox_node }}"
+          - "   Disk   : {{ vm_disk_size }} on {{ proxmox_storage }}"
+          - "   Memory : {{ vm_memory_mb }} MB"
+          - "   Cores  : {{ vm_cores }}"
+          - "   Network: {{ vm_bridge }}{{ ' VLAN ' + vm_vlan_tag if vm_vlan_tag else '' }}"
+          - "   IP     : {{ vm_ip_config }}"

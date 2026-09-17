@@ -3,7 +3,7 @@
   become: true
   gather_facts: true
   vars_files:
-    - var/main.yml
+    - vault/var/main.vault.yml
   tasks:
 
 ## https://help.ubuntu.com/community/AutomaticSecurityUpdates

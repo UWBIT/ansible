@@ -35,6 +35,7 @@
           - wget
           - qemu-guest-agent
           - git
+          - epel-release
         state: present
 
     - name: Enable and start qemu-guest-agent
